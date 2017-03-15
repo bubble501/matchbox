@@ -36,7 +36,7 @@ systemd:
           contents: |
             [Service]
             Environment="REBOOT_STRATEGY=etcd-lock"
-    - name: k8s-certs@.service
+    - name: k8s-certs-apiserver-pem.service
       contents: |
         [Unit]
         Description=Fetch Kubernetes certificate assets
@@ -44,17 +44,35 @@ systemd:
         After=network-online.target
         [Service]
         ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/ssl
-        ExecStart=/usr/bin/bash -c "[ -f /etc/kubernetes/ssl/%i ] || curl {{.k8s_cert_endpoint}}/tls/%i -o /etc/kubernetes/ssl/%i"
+        ExecStart=/usr/bin/bash -c "[ -f /etc/kubernetes/ssl/apiserver.pem ] || curl {{.k8s_cert_endpoint}}/tls/apiserver.pem -o /etc/kubernetes/ssl/apiserver.pem"
+    - name: k8s-certs-apiserver-key-pem.service
+      contents: |
+        [Unit]
+        Description=Fetch Kubernetes certificate assets
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/ssl
+        ExecStart=/usr/bin/bash -c "[ -f /etc/kubernetes/ssl/apiserver-key.pem ] || curl {{.k8s_cert_endpoint}}/tls/apiserver-key.pem -o /etc/kubernetes/ssl/apiserver-key.pem"
+    - name: k8s-certs-ca-pem.service
+      contents: |
+        [Unit]
+        Description=Fetch Kubernetes certificate assets
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/ssl
+        ExecStart=/usr/bin/bash -c "[ -f /etc/kubernetes/ssl/ca.pem ] || curl {{.k8s_cert_endpoint}}/tls/ca.pem -o /etc/kubernetes/ssl/ca.pem"
     - name: k8s-assets.target
       contents: |
         [Unit]
         Description=Load Kubernetes Assets
-        Requires=k8s-certs@apiserver.pem.service
-        After=k8s-certs@apiserver.pem.service
-        Requires=k8s-certs@apiserver-key.pem.service
-        After=k8s-certs@apiserver-key.pem.service
-        Requires=k8s-certs@ca.pem.service
-        After=k8s-certs@ca.pem.service
+        Requires=k8s-certs-apiserver-pem.service
+        After=k8s-certs-apiserver-pem.service
+        Requires=k8s-certs-apiserver-key-pem.service
+        After=k8s-certs-apiserver-key-pem.service
+        Requires=k8s-certs-ca-pem.service
+        After=k8s-certs-ca-pem.service
     - name: kubelet.service
       enable: true
       contents: |
@@ -626,17 +644,17 @@ storage:
         inline: |
           kind: Service
           apiVersion: v1
-          metadata: 
+          metadata:
             name: heapster
             namespace: kube-system
-            labels: 
+            labels:
               kubernetes.io/cluster-service: "true"
               kubernetes.io/name: "Heapster"
-          spec: 
-            ports: 
+          spec:
+            ports:
               - port: 80
                 targetPort: 8082
-            selector: 
+            selector:
               k8s-app: heapster
     - path: /srv/kubernetes/manifests/kube-dashboard-deployment.yaml
       filesystem: root
